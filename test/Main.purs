@@ -24,7 +24,7 @@ import Control.Monad.Eff.Random (RANDOM)
 import Data.Identity (Identity)
 import Data.Array as Array
 import Data.Int as Int
-import Data.Line (Line, lines, words, printLine)
+import Data.String.WrappedLine (WrappedLine, wrappedLines, measuredWords, printWrappedLine)
 import Data.Maybe (maybe)
 import Data.Newtype (unwrap)
 import Data.String as String
@@ -50,11 +50,11 @@ monospaceMeasure ∷ String → Identity Number
 monospaceMeasure =
   pure <<< Int.toNumber <<< String.length
 
-lines' ∷ Number → String → Array Line
-lines' number =
+wrappedLines' ∷ Number → String → Array WrappedLine
+wrappedLines' number =
   unwrap
-    <<< map (lines { maxWidth: number, spaceWidth: 1.0 })
-    <<< words monospaceMeasure
+    <<< map (wrappedLines { maxWidth: number, spaceWidth: 1.0 })
+    <<< measuredWords monospaceMeasure
 
 containsASpace ∷ String → Boolean
 containsASpace = String.contains $ String.Pattern " "
@@ -62,22 +62,22 @@ containsASpace = String.contains $ String.Pattern " "
 main ∷ forall e. Eff (err ∷ EXCEPTION, random ∷ RANDOM, console ∷ CONSOLE | e) Unit
 main = do
   quickCheck \(MoreIntyPositiveNumber width) (MoreSpaceyString string) → do
-    let ls = printLine <$> lines' width string
+    let ls = printWrappedLine <$> wrappedLines' width string
     let lsWithSpaces = Array.filter containsASpace ls
-    let highestLineWidth = maximum (unwrap <<< monospaceMeasure <$> lsWithSpaces)
-    maybe true (_ <= width) highestLineWidth
+    let highestWrappedLineWidth = maximum (unwrap <<< monospaceMeasure <$> lsWithSpaces)
+    maybe true (_ <= width) highestWrappedLineWidth
       <?> "Not all lines which contained spaces were narrower than the given width."
       <> "\n\nWidth:\n"
       <> show width
-      <> "\n\nLines:\n"
+      <> "\n\nWrappedLines:\n"
       <> show ls
       <> "\n\nHighest line width with a space:\n"
-      <> show highestLineWidth
+      <> show highestWrappedLineWidth
 
   quickCheck \(MoreIntyPositiveNumber width) (MoreSpaceyString string) → do
-    let ls = String.joinWith " " $ printLine <$> lines' width string
+    let ls = String.joinWith " " $ printWrappedLine <$> wrappedLines' width string
     string == ls
-      <?> "Lines weren't equal to the given string when printed."
+      <?> "WrappedLines weren't equal to the given string when printed."
       <> "\n\nPrinted lines:\n"
       <> show ls
       <> "\n\nGiven string:\n"

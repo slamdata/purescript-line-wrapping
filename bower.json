@@ -1,11 +1,16 @@
 {
-  "name": "purescript-lines",
+  "name": "purescript-line-wrapping",
   "ignore": [
     "**/.*",
     "node_modules",
     "bower_components",
     "output"
   ],
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/slamdata/purescript-line-wrapping.git"
+  },
+  "license": "Apache-2.0",
   "dependencies": {
     "purescript-prelude": "^2.0.0",
     "purescript-console": "^2.0.0",
