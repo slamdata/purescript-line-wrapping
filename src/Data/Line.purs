@@ -1,3 +1,16 @@
+{-
+Copyright 2016 SlamData, Inc.
+Licensed under the Apache License, Version 2.0 (the "License");
+you may not use this file except in compliance with the License.
+You may obtain a copy of the License at
+    http://www.apache.org/licenses/LICENSE-2.0
+Unless required by applicable law or agreed to in writing, software
+distributed under the License is distributed on an "AS IS" BASIS,
+WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+See the License for the specific language governing permissions and
+limitations under the License.
+-}
+
 module Data.Line (Word, Line, Conf, words, lines, printLine, printWord) where
 
 import Prelude
@@ -20,15 +33,14 @@ type Conf = { maxWidth ∷ Number, spaceWidth ∷ Number }
 derive instance newtypeWord ∷ Newtype Word _
 
 lineWidth ∷ Number → Line → Number
-lineWidth spaceWidth =
-  case _ of
-    SingleWordLine (Word w) →
-      w.width
-    MultipleWordLine (Word w1) (Word w2) ws →
-      w1.width
-        + w2.width
-        + sum (_.width <<< unwrap <$> ws)
-        + (Int.toNumber (2 + Array.length ws) * spaceWidth)
+lineWidth spaceWidth = case _ of
+  SingleWordLine (Word w) →
+    w.width
+  MultipleWordLine (Word w1) (Word w2) ws →
+    w1.width
+      + w2.width
+      + sum (_.width <<< unwrap <$> ws)
+      + (Int.toNumber (2 + Array.length ws) * spaceWidth)
 
 lines' ∷ Conf → Line → Word → Array Line
 lines' conf line w'@(Word w) =
@@ -40,25 +52,23 @@ lines ∷ Conf → Array Word → Array Line
 lines conf =
   tailRec go <<< { ws: _, ls: [] }
   where
-  go { ws, ls } =
-    case Array.uncons ws, Array.unsnoc ls of
-      Just { head, tail }, Nothing →
-        Loop { ws: tail, ls: [SingleWordLine head] }
-      Just { head, tail }, Just { init, last } →
-        Loop { ws: tail, ls: init <> lines' conf last head }
-      Nothing, Just _ →
-        Done ls
-      Nothing, Nothing →
-        Done []
+  go { ws, ls } = case Array.uncons ws, Array.unsnoc ls of
+    Just { head, tail }, Nothing →
+      Loop { ws: tail, ls: [SingleWordLine head] }
+    Just { head, tail }, Just { init, last } →
+      Loop { ws: tail, ls: init <> lines' conf last head }
+    Nothing, Just _ →
+      Done ls
+    Nothing, Nothing →
+      Done []
 
 appendWordToLine ∷ Line → Word → Line
-appendWordToLine =
-  case _, _ of
-    SingleWordLine x, y →
-      MultipleWordLine x y []
+appendWordToLine = case _, _ of
+  SingleWordLine x, y →
+    MultipleWordLine x y []
 
-    MultipleWordLine x1 x2 xs, y →
-      MultipleWordLine x1 x2 $ xs <> [y]
+  MultipleWordLine x1 x2 xs, y →
+    MultipleWordLine x1 x2 $ xs <> [y]
 
 word ∷ String → Number → Word
 word string width =
@@ -70,8 +80,8 @@ words measure =
     <<< String.split (String.Pattern " ")
 
 printWord ∷ Word → String
-printWord (Word { string }) =
-  string
+printWord =
+  _.string <<< unwrap
 
 printLine ∷ Line → String
 printLine =
