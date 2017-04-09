@@ -24,7 +24,7 @@ import Control.Monad.Eff.Random (RANDOM)
 import Data.Identity (Identity)
 import Data.Array as Array
 import Data.Int as Int
-import Data.String.WrappedLine (WrappedLine, wrappedLines, measuredWords, printWrappedLine)
+import Data.String.LineWrapping (WrappedLine, wrappedLines, measuredWords, printWrappedLine)
 import Data.Maybe (maybe)
 import Data.Newtype (unwrap)
 import Data.String as String

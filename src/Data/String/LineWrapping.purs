@@ -11,7 +11,15 @@ See the License for the specific language governing permissions and
 limitations under the License.
 -}
 
-module Data.String.WrappedLine (MeasuredWord, WrappedLine, Conf, measuredWords, wrappedLines, printWrappedLine, printWord) where
+module Data.String.LineWrapping
+  ( MeasuredWord
+  , WrappedLine
+  , Conf
+  , measuredWords
+  , wrappedLines
+  , printWrappedLine
+  , printMeasuredWord
+  ) where
 
 import Prelude
 
@@ -19,38 +27,42 @@ import Control.Monad.Rec.Class (Step(Loop, Done), tailRec)
 import Data.Array as Array
 import Data.String as String
 import Data.Foldable (sum)
-import Data.Newtype (class Newtype, unwrap)
 import Data.Int as Int
 import Data.Maybe (Maybe(Just, Nothing))
 import Data.Traversable (traverse)
 
-newtype MeasuredWord = Word { string ∷ String, width ∷ Number }
+type Conf = { maxWidth ∷ Number, spaceWidth ∷ Number }
+
+type MeasuredWordR = { string ∷ String, width ∷ Number }
+
+newtype MeasuredWord = MeasuredWord MeasuredWordR
 
 data WrappedLine
   = SingleWordWrappedLine MeasuredWord
   | MultipleWordWrappedLine MeasuredWord MeasuredWord (Array MeasuredWord)
 
-type Conf = { maxWidth ∷ Number, spaceWidth ∷ Number }
-
-derive instance newtypeWord ∷ Newtype MeasuredWord _
+unwrap ∷ MeasuredWord → MeasuredWordR
+unwrap (MeasuredWord r) =
+  r
 
 lineWidth ∷ Number → WrappedLine → Number
 lineWidth spaceWidth = case _ of
-  SingleWordWrappedLine (Word w) →
+  SingleWordWrappedLine (MeasuredWord w) →
     w.width
-  MultipleWordWrappedLine (Word w1) (Word w2) ws →
+  MultipleWordWrappedLine (MeasuredWord w1) (MeasuredWord w2) ws →
     w1.width
       + w2.width
       + sum (_.width <<< unwrap <$> ws)
       + (Int.toNumber (2 + Array.length ws) * spaceWidth)
 
 wrappedLines' ∷ Conf → WrappedLine → MeasuredWord → Array WrappedLine
-wrappedLines' conf line w'@(Word w) =
+wrappedLines' conf line w'@(MeasuredWord w) =
   if lineWidth conf.spaceWidth (line `appendWordToWrappedLine` w') <= conf.maxWidth
     then [line `appendWordToWrappedLine` w']
     else [line, SingleWordWrappedLine w']
 
--- Arranges Words on WrappedWrappedLines. Currently only supports non word-breaking unjustified wrappedLines.
+-- Arranges MeasuredWords on WrappedLines.
+-- Currently only supports non word-breaking unjustified wrapping.
 wrappedLines ∷ Conf → Array MeasuredWord → Array WrappedLine
 wrappedLines conf =
   tailRec go <<< { ws: _, ls: [] }
@@ -75,22 +87,24 @@ appendWordToWrappedLine = case _, _ of
 
 measuredWord ∷ String → Number → MeasuredWord
 measuredWord string width =
-  Word { string, width }
+  MeasuredWord { string, width }
 
+-- Measures the things between spaces in a string and annotates them with their
+-- width.
 measuredWords ∷ ∀ m. Applicative m ⇒ (String → m Number) → String → m (Array MeasuredWord)
 measuredWords measure =
-  traverse (\string → (Word <<< { string, width: _ }) <$> measure string)
+  traverse (\string → (MeasuredWord <<< { string, width: _ }) <$> measure string)
     <<< String.split (String.Pattern " ")
 
-printWord ∷ MeasuredWord → String
-printWord =
+printMeasuredWord ∷ MeasuredWord → String
+printMeasuredWord =
   _.string <<< unwrap
 
 printWrappedLine ∷ WrappedLine → String
 printWrappedLine =
   case _ of
     SingleWordWrappedLine x →
-      printWord x
+      printMeasuredWord x
     MultipleWordWrappedLine x1 x2 xs →
-      String.joinWith " " $ printWord <$> [x1] <> [x2] <> xs
+      String.joinWith " " $ printMeasuredWord <$> [x1] <> [x2] <> xs
 
