@@ -135,3 +135,13 @@ main = do
       <> "\n\nGiven string:\n"
       <> show string
 
+  quickCheck \(MoreIntyPositiveNumber width) (MoreSpaceyAndNewlineyString string) → do
+    let ls1 = String.joinWith "\n" $ printWrappedLine <$> wrappedLines' width string
+    let ls2 = String.joinWith "\n" $ printWrappedLine <$> wrappedLines' width ls1
+    ls1 == ls2
+      <?> "wrappedLines is not idempotent"
+      <> "\n\n1st application:\n"
+      <> show ls1
+      <> "\n\n2nd application:\n"
+      <> show ls2
+
