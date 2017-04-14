@@ -19,6 +19,7 @@ module Data.String.LineWrapping
   , wrappedLines
   , printWrappedLine
   , printMeasuredWord
+  , splitByNewlineOrSpace
   ) where
 
 import Prelude
@@ -94,7 +95,14 @@ measuredWord string width =
 measuredWords ∷ ∀ m. Applicative m ⇒ (String → m Number) → String → m (Array MeasuredWord)
 measuredWords measure =
   traverse (\string → (MeasuredWord <<< { string, width: _ }) <$> measure string)
-    <<< String.split (String.Pattern " ")
+    <<< Array.filter (not <<< String.null)
+    <<< splitByNewlineOrSpace
+
+splitByNewlineOrSpace ∷ String → Array String
+splitByNewlineOrSpace =
+  String.split (String.Pattern " ")
+    <=< String.split (String.Pattern "\n")
+    <=< String.split (String.Pattern "\r")
 
 printMeasuredWord ∷ MeasuredWord → String
 printMeasuredWord =
@@ -106,5 +114,5 @@ printWrappedLine =
     SingleWordWrappedLine x →
       printMeasuredWord x
     MultipleWordWrappedLine x1 x2 xs →
-      String.joinWith " " $ printMeasuredWord <$> [x1] <> [x2] <> xs
+      String.joinWith "\n" $ printMeasuredWord <$> [x1] <> [x2] <> xs
 

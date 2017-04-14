@@ -21,30 +21,74 @@ import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Exception (EXCEPTION)
 import Control.Monad.Eff.Random (RANDOM)
+import Control.Monad.Rec.Class (Step(Loop, Done), tailRecM)
 import Data.Identity (Identity)
 import Data.Array as Array
 import Data.Int as Int
-import Data.String.LineWrapping (WrappedLine, wrappedLines, measuredWords, printWrappedLine)
-import Data.Maybe (maybe)
-import Data.Newtype (unwrap)
+import Data.Char (fromCharCode)
+import Data.String.LineWrapping (WrappedLine, wrappedLines, measuredWords, printWrappedLine, splitByNewlineOrSpace)
+import Data.Maybe (fromMaybe, maybe)
 import Data.String as String
-import Data.Foldable (maximum)
+import Data.Foldable (any, maximum)
+import Data.List as List
+import Data.NonEmpty (NonEmpty(NonEmpty))
 import Test.QuickCheck (quickCheck, (<?>))
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
-import Test.QuickCheck.Gen (suchThat, chooseInt)
+import Test.QuickCheck.Data.AlphaNumString (AlphaNumString(AlphaNumString))
+import Test.QuickCheck.Gen (Gen, oneOf, choose, chooseInt)
+import Data.Newtype (class Newtype, un, unwrap)
 
 newtype MoreIntyPositiveNumber = MoreIntyPositiveNumber Number
 
-newtype MoreSpaceyString = MoreSpaceyString String
+newtype MoreSpaceyAndNewlineyString = MoreSpaceyAndNewlineyString String
+
+newtype ChunkyString = ChunkyString String
+
+derive instance newtypeChunkyString ∷ Newtype ChunkyString _
 
 instance arbitraryMoreIntyPositiveNumber ∷ Arbitrary MoreIntyPositiveNumber where
   arbitrary =
-    MoreIntyPositiveNumber
-      <$> ((+) <$> (Int.toNumber <$> chooseInt 0 2000) <*> suchThat arbitrary (_ >= 0.0))
+    MoreIntyPositiveNumber <$> choose 0.0 2000.0
 
-instance arbitraryMoreSpaceyString ∷ Arbitrary MoreSpaceyString where
+instance arbitraryMoreSpaceyAndNewlineyString ∷ Arbitrary MoreSpaceyAndNewlineyString where
   arbitrary =
-    MoreSpaceyString <<< String.joinWith " " <$> arbitrary
+    MoreSpaceyAndNewlineyString
+      <$> (String.joinWith <$> pickOne (NonEmpty " " ["\n", "\r"])
+      <*> (map (un ChunkyString) <$> arbitrary))
+
+instance arbitraryChunkyString ∷ Arbitrary ChunkyString where
+  arbitrary = ChunkyString <$> do
+    chance <- arbitrary
+    if chance < 0.25
+      then genString 0 500
+      else genString 500 1000
+
+genString ∷ Int → Int → Gen String
+genString minimum maximum = do
+  size ← chooseInt minimum maximum
+  String.fromCharArray
+    <$> genArray
+          size
+          (oneOf (pure 'a') (map pure $ String.toCharArray "bcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456"))
+
+genArray ∷ forall a. Int → Gen a → Gen (Array a)
+genArray size gen =
+  Array.fromFoldable <$> tailRecM go { xs: List.Nil, remainingSize: size }
+  where
+  go { xs, remainingSize }
+    | remainingSize == 0 =
+        pure $ Done xs
+    | otherwise = do
+        x ← gen
+        pure $ Loop { xs: List.Cons x xs, remainingSize: remainingSize - 1 }
+
+pickOne ∷ forall a. NonEmpty Array a → Gen a
+pickOne (NonEmpty x xs) =
+  fromMaybe x <<< Array.index xs <$> chooseInt 0 (Array.length xs)
+
+genChar ∷ Gen Char
+genChar =
+  fromCharCode <$> chooseInt 0 65535
 
 monospaceMeasure ∷ String → Identity Number
 monospaceMeasure =
@@ -56,30 +100,38 @@ wrappedLines' number =
     <<< map (wrappedLines { maxWidth: number, spaceWidth: 1.0 })
     <<< measuredWords monospaceMeasure
 
-containsASpace ∷ String → Boolean
-containsASpace = String.contains $ String.Pattern " "
+unwrapAlphaNumString ∷ AlphaNumString → String
+unwrapAlphaNumString (AlphaNumString s) =
+  s
+
+containsASpaceOrNewLine ∷ String → Boolean
+containsASpaceOrNewLine =
+  any (String.contains <<< String.Pattern) [" ", "\n", "\r"]
 
 main ∷ forall e. Eff (err ∷ EXCEPTION, random ∷ RANDOM, console ∷ CONSOLE | e) Unit
 main = do
-  quickCheck \(MoreIntyPositiveNumber width) (MoreSpaceyString string) → do
+  quickCheck \(MoreIntyPositiveNumber width) (MoreSpaceyAndNewlineyString string) → do
     let ls = printWrappedLine <$> wrappedLines' width string
-    let lsWithSpaces = Array.filter containsASpace ls
-    let highestWrappedLineWidth = maximum (unwrap <<< monospaceMeasure <$> lsWithSpaces)
+    let filteredLs = Array.filter containsASpaceOrNewLine ls
+    let highestWrappedLineWidth = maximum (unwrap <<< monospaceMeasure <$> filteredLs)
     maybe true (_ <= width) highestWrappedLineWidth
-      <?> "Not all lines which contained spaces were narrower than the given width."
+      <?> "Not all lines which contained spaces or newlines were narrower than the given width."
       <> "\n\nWidth:\n"
       <> show width
       <> "\n\nWrappedLines:\n"
       <> show ls
-      <> "\n\nHighest line width with a space:\n"
+      <> "\n\nHighest line width with a space or newline:\n"
       <> show highestWrappedLineWidth
 
-  quickCheck \(MoreIntyPositiveNumber width) (MoreSpaceyString string) → do
-    let ls = String.joinWith " " $ printWrappedLine <$> wrappedLines' width string
-    string == ls
+  quickCheck \(MoreIntyPositiveNumber width) (MoreSpaceyAndNewlineyString string) → do
+    let ls = String.joinWith "" $ splitByNewlineOrSpace $ String.joinWith "" $ printWrappedLine <$> wrappedLines' width string
+    let s = String.joinWith "" $ splitByNewlineOrSpace string
+    s == ls
       <?> "WrappedLines weren't equal to the given string when printed."
       <> "\n\nPrinted lines:\n"
       <> show ls
+      <> "\n\nPrinted string:\n"
+      <> show s
       <> "\n\nGiven string:\n"
       <> show string
 
