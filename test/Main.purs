@@ -69,7 +69,7 @@ genString minimum maximum = do
   String.fromCharArray
     <$> genArray
           size
-          (oneOf (pure 'a') (map pure $ String.toCharArray "bcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456"))
+          arbitrary
 
 genArray ∷ forall a. Int → Gen a → Gen (Array a)
 genArray size gen =
