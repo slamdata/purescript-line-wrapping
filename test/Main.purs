@@ -21,13 +21,13 @@ import Control.Monad.Eff (Eff)
 import Control.Monad.Eff.Console (CONSOLE)
 import Control.Monad.Eff.Exception (EXCEPTION)
 import Control.Monad.Eff.Random (RANDOM)
-import Control.Monad.Rec.Class (Step(Loop, Done), tailRecM)
+import Control.Monad.Rec.Class (Step(Loop, Done), tailRecM, tailRec)
 import Data.Identity (Identity)
 import Data.Array as Array
 import Data.Int as Int
 import Data.Char (fromCharCode)
 import Data.String.LineWrapping (WrappedLine, wrappedLines, measuredWords, printWrappedLine, splitByNewlineOrSpace)
-import Data.Maybe (fromMaybe, maybe)
+import Data.Maybe (Maybe(Just, Nothing), isNothing, fromMaybe, maybe)
 import Data.String as String
 import Data.Foldable (any, maximum)
 import Data.List as List
@@ -108,6 +108,20 @@ containsASpaceOrNewLine ∷ String → Boolean
 containsASpaceOrNewLine =
   any (String.contains <<< String.Pattern) [" ", "\n", "\r"]
 
+firstWordThatFitsOnPrevLine ∷ Number → Array (Array String) → Maybe { prevLine ∷ Array String, wordThatFits :: String }
+firstWordThatFitsOnPrevLine maxWidth initialLines =
+  tailRec go initialLines
+  where
+  go = Array.uncons >>> case _ of
+    Just { head, tail } →
+      case Array.head =<< Array.head tail of
+        Just firstWord →
+          if Int.toNumber (String.length ((String.joinWith " " head) <> " " <> firstWord)) > maxWidth
+            then Loop tail
+            else Done $ Just { prevLine: head, wordThatFits: firstWord }
+        Nothing → Done Nothing
+    Nothing → Done Nothing
+
 main ∷ forall e. Eff (err ∷ EXCEPTION, random ∷ RANDOM, console ∷ CONSOLE | e) Unit
 main = do
   quickCheck \(MoreIntyPositiveNumber width) (MoreSpaceyAndNewlineyString string) → do
@@ -122,6 +136,18 @@ main = do
       <> show ls
       <> "\n\nHighest line width with a space or newline:\n"
       <> show highestWrappedLineWidth
+
+  quickCheck \(MoreIntyPositiveNumber width) (MoreSpaceyAndNewlineyString string) → do
+    let ls = String.split (String.Pattern " ") <$> (printWrappedLine <$> wrappedLines' width string)
+    let firstWord = firstWordThatFitsOnPrevLine width ls
+    isNothing firstWord
+       <?> "First word on this line fit onto the previous line."
+       <> "\n\nPrevious line:\n"
+       <> show (maybe "SOMETHING WENT WRONG!" (String.joinWith " " <<< _.prevLine) firstWord)
+       <> "\n\nFirst Word from line that fits on previous line:\n"
+       <> show (maybe "SOMETHING WENT WRONG!" _.wordThatFits firstWord)
+       <> "\n\nMax width:\n"
+       <> show width
 
   quickCheck \(MoreIntyPositiveNumber width) (MoreSpaceyAndNewlineyString string) → do
     let ls = String.joinWith "" $ splitByNewlineOrSpace $ String.joinWith "" $ printWrappedLine <$> wrappedLines' width string
@@ -140,6 +166,8 @@ main = do
     let ls2 = String.joinWith "\n" $ printWrappedLine <$> wrappedLines' width ls1
     ls1 == ls2
       <?> "wrappedLines is not idempotent"
+      <> "\n\noriginal:\n"
+      <> show string
       <> "\n\n1st application:\n"
       <> show ls1
       <> "\n\n2nd application:\n"
