@@ -38,29 +38,26 @@ type MeasuredWordR = { string ∷ String, width ∷ Number }
 
 newtype MeasuredWord = MeasuredWord MeasuredWordR
 
-data WrappedLine
-  = SingleWordWrappedLine MeasuredWord
-  | MultipleWordWrappedLine MeasuredWord MeasuredWord (Array MeasuredWord)
+newtype WrappedLine = WrappedLine (Array MeasuredWord)
 
-unwrap ∷ MeasuredWord → MeasuredWordR
-unwrap (MeasuredWord r) =
-  r
+unwrapMeasuredWord ∷ MeasuredWord → MeasuredWordR
+unwrapMeasuredWord (MeasuredWord x) = x
+
+unwrapWrappedLine ∷ WrappedLine → Array MeasuredWord
+unwrapWrappedLine (WrappedLine x) = x
 
 lineWidth ∷ Number → WrappedLine → Number
-lineWidth spaceWidth = case _ of
-  SingleWordWrappedLine (MeasuredWord w) →
-    w.width
-  MultipleWordWrappedLine (MeasuredWord w1) (MeasuredWord w2) ws →
-    w1.width
-      + w2.width
-      + sum (_.width <<< unwrap <$> ws)
-      + (Int.toNumber (2 + Array.length ws) * spaceWidth)
+lineWidth spaceWidth wrappedLine =
+  sum (_.width <<< unwrapMeasuredWord <$> ws)
+    + (Int.toNumber (Array.length ws) * spaceWidth)
+  where
+  ws = unwrapWrappedLine wrappedLine
 
 wrappedLines' ∷ Conf → WrappedLine → MeasuredWord → Array WrappedLine
 wrappedLines' conf line w'@(MeasuredWord w) =
   if lineWidth conf.spaceWidth (line `appendWordToWrappedLine` w') <= conf.maxWidth
     then [line `appendWordToWrappedLine` w']
-    else [line, SingleWordWrappedLine w']
+    else [line, WrappedLine [w']]
 
 -- Arranges MeasuredWords on WrappedLines.
 -- Currently only supports non word-breaking unjustified wrapping.
@@ -70,7 +67,7 @@ wrappedLines conf =
   where
   go { ws, ls } = case Array.uncons ws, Array.unsnoc ls of
     Just { head, tail }, Nothing →
-      Loop { ws: tail, ls: [SingleWordWrappedLine head] }
+      Loop { ws: tail, ls: [WrappedLine [head]] }
     Just { head, tail }, Just { init, last } →
       Loop { ws: tail, ls: init <> wrappedLines' conf last head }
     Nothing, Just _ →
@@ -79,12 +76,8 @@ wrappedLines conf =
       Done []
 
 appendWordToWrappedLine ∷ WrappedLine → MeasuredWord → WrappedLine
-appendWordToWrappedLine = case _, _ of
-  SingleWordWrappedLine x, y →
-    MultipleWordWrappedLine x y []
-
-  MultipleWordWrappedLine x1 x2 xs, y →
-    MultipleWordWrappedLine x1 x2 $ xs <> [y]
+appendWordToWrappedLine l w =
+  WrappedLine $ flip Array.snoc w $ unwrapWrappedLine l
 
 measuredWord ∷ String → Number → MeasuredWord
 measuredWord string width =
@@ -106,13 +99,9 @@ splitByNewlineOrSpace =
 
 printMeasuredWord ∷ MeasuredWord → String
 printMeasuredWord =
-  _.string <<< unwrap
+  _.string <<< unwrapMeasuredWord
 
 printWrappedLine ∷ WrappedLine → String
 printWrappedLine =
-  case _ of
-    SingleWordWrappedLine x →
-      printMeasuredWord x
-    MultipleWordWrappedLine x1 x2 xs →
-      String.joinWith "\n" $ printMeasuredWord <$> [x1] <> [x2] <> xs
+  String.joinWith " " <<< map printMeasuredWord <<< unwrapWrappedLine
 
