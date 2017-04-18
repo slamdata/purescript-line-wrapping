@@ -35,7 +35,7 @@ import Data.NonEmpty (NonEmpty(NonEmpty))
 import Test.QuickCheck (quickCheck, (<?>))
 import Test.QuickCheck.Arbitrary (class Arbitrary, arbitrary)
 import Test.QuickCheck.Data.AlphaNumString (AlphaNumString(AlphaNumString))
-import Test.QuickCheck.Gen (Gen, oneOf, choose, chooseInt)
+import Test.QuickCheck.Gen (Gen, choose, chooseInt)
 import Data.Newtype (class Newtype, un, unwrap)
 
 newtype MoreIntyPositiveNumber = MoreIntyPositiveNumber Number
