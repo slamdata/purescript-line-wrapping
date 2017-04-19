@@ -22,6 +22,7 @@ module Data.String.LineWrapping
   , printWrappedLine
   , printMeasuredWord
   , splitByNewlineOrSpace
+  , lineWidth
   ) where
 
 import Prelude
