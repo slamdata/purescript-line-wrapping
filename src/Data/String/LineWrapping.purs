@@ -16,8 +16,8 @@ module Data.String.LineWrapping
   , WrappedLine
   , Conf
   , measuredWords
-  , unwrapMeasuredWord
-  , unwrapWrappedLine
+  , unMeasuredWord
+  , unWrappedLine
   , wrappedLines
   , printWrappedLine
   , printMeasuredWord
@@ -46,18 +46,18 @@ derive instance eqMeasuredWord ∷ Eq MeasuredWord
 
 derive newtype instance eqWrappedLine ∷ Eq WrappedLine
 
-unwrapMeasuredWord ∷ MeasuredWord → MeasuredWordR
-unwrapMeasuredWord (MeasuredWord x) = x
+unMeasuredWord ∷ MeasuredWord → MeasuredWordR
+unMeasuredWord (MeasuredWord x) = x
 
-unwrapWrappedLine ∷ WrappedLine → Array MeasuredWord
-unwrapWrappedLine (WrappedLine x) = x
+unWrappedLine ∷ WrappedLine → Array MeasuredWord
+unWrappedLine (WrappedLine x) = x
 
 lineWidth ∷ Number → WrappedLine → Number
 lineWidth spaceWidth wrappedLine =
-  sum (_.width <<< unwrapMeasuredWord <$> ws)
+  sum (_.width <<< unMeasuredWord <$> ws)
     + (Int.toNumber (Array.length ws) * spaceWidth)
   where
-  ws = unwrapWrappedLine wrappedLine
+  ws = unWrappedLine wrappedLine
 
 wrappedLines' ∷ Conf → WrappedLine → MeasuredWord → Array WrappedLine
 wrappedLines' conf line w'@(MeasuredWord w) =
@@ -83,7 +83,7 @@ wrappedLines conf =
 
 appendWordToWrappedLine ∷ WrappedLine → MeasuredWord → WrappedLine
 appendWordToWrappedLine l w =
-  WrappedLine $ flip Array.snoc w $ unwrapWrappedLine l
+  WrappedLine $ flip Array.snoc w $ unWrappedLine l
 
 measuredWord ∷ String → Number → MeasuredWord
 measuredWord string width =
@@ -105,9 +105,9 @@ splitByNewlineOrSpace =
 
 printMeasuredWord ∷ MeasuredWord → String
 printMeasuredWord =
-  _.string <<< unwrapMeasuredWord
+  _.string <<< unMeasuredWord
 
 printWrappedLine ∷ WrappedLine → String
 printWrappedLine =
-  String.joinWith " " <<< map printMeasuredWord <<< unwrapWrappedLine
+  String.joinWith " " <<< map printMeasuredWord <<< unWrappedLine
 
