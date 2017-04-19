@@ -16,6 +16,8 @@ module Data.String.LineWrapping
   , WrappedLine
   , Conf
   , measuredWords
+  , unwrapMeasuredWord
+  , unwrapWrappedLine
   , wrappedLines
   , printWrappedLine
   , printMeasuredWord
