@@ -40,9 +40,7 @@ newtype MeasuredWord = MeasuredWord MeasuredWordR
 
 newtype WrappedLine = WrappedLine (Array MeasuredWord)
 
-instance eqMeasuredWord ∷ Eq MeasuredWord where
-  eq (MeasuredWord x) (MeasuredWord y) =
-    (x.string == y.string) && (x.width == y.width)
+derive instance eqMeasuredWord ∷ Eq MeasuredWord
 
 derive newtype instance eqWrappedLine ∷ Eq WrappedLine
 
