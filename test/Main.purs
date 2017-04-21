@@ -122,7 +122,7 @@ firstWordThatFitsOnPrevLine maxWidth initialLines =
         Nothing → Done Nothing
     Nothing → Done Nothing
 
-main ∷ forall e. Eff (err ∷ EXCEPTION, random ∷ RANDOM, console ∷ CONSOLE | e) Unit
+main ∷ forall e. Eff (exception ∷ EXCEPTION, random ∷ RANDOM, console ∷ CONSOLE | e) Unit
 main = do
   quickCheck \(MoreIntyPositiveNumber width) (MoreSpaceyAndNewlineyString string) → do
     let ls = printWrappedLine <$> wrappedLines' width string
